@@ -13,12 +13,15 @@
 
 ## What's Built
 - Project folder structure created
+- Python FastAPI service (backend-python/)
+  - GET /price/{symbol} endpoint
+  - yFinance integration
+  - Dockerized and tested
 
 ## What's In Progress
-- Python FastAPI service (price fetching via yFinance)
+- Java Spring Boot gateway service
 
 ## What's Next
-- Java Spring Boot gateway
 - React frontend price display
 - Docker Compose wiring all 3 together
 
@@ -28,7 +31,7 @@
 - Node.js/Express NOT used - intentionally chose Spring Boot for enterprise signal
 
 ## Phase Completion Checklist
-- [ ] Phase 1: Walking Skeleton
+- [ ] Phase 1: Walking Skeleton (in progress)
 - [ ] Phase 2: Trading Engine
 - [ ] Phase 3: RAG Intelligence
 - [ ] Phase 4: Enterprise Layer
