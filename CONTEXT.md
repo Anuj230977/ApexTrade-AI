@@ -9,10 +9,9 @@
 - Cache: Redis
 - DevOps: Docker, GitHub Actions
 
-## Current Phase: Phase 1 - Walking Skeleton
+## Current Phase: Phase 2 - Trading Engine
 
 ## What's Built
-- Project folder structure created
 - Python FastAPI service (backend-python/)
   - GET /price/{symbol} endpoint
   - yFinance integration
@@ -20,18 +19,25 @@
 - Java Spring Boot gateway (backend-java/)
   - GET /api/market/price/{symbol} endpoint
   - Calls Python service via RestTemplate
-  - Global CORS configuration
+  - Global CORS configuration via WebMvcConfigurer
   - Dockerized with multi-stage build
 - React frontend (frontend/)
   - PriceTicker component
-  - Fetches price via Java gateway
-  - Loading and error states handled
+  - Fetches price through Java gateway only
+  - Dockerized with nginx
+- Docker Compose (docker-compose.yml)
+  - All 3 services on trading-net bridge network
+  - Correct startup order via depends_on
+  - Environment variable for Python URL
 
 ## What's In Progress
-- Docker Compose wiring all 3 services together
+- Phase 2: PostgreSQL + JWT Auth + Virtual Wallet
 
 ## What's Next
-- Phase 2: PostgreSQL + User Auth + Wallet
+- Add PostgreSQL container to Docker Compose
+- User registration and login endpoints in Java
+- JWT token generation and validation
+- Virtual wallet ($10,000 on signup)
 
 ## Decisions Made
 - Frontend talks to Java only, never Python directly
@@ -39,7 +45,7 @@
 - Node.js/Express NOT used - intentionally chose Spring Boot for enterprise signal
 
 ## Phase Completion Checklist
-- [ ] Phase 1: Walking Skeleton (in progress — pending Docker Compose)
+- [x] Phase 1: Walking Skeleton ✅
 - [ ] Phase 2: Trading Engine
 - [ ] Phase 3: RAG Intelligence
 - [ ] Phase 4: Enterprise Layer
