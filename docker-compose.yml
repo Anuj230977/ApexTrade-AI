@@ -1,0 +1,31 @@
+services:
+  python-service:
+    build: ./backend-python
+    ports:
+      - "8000:8000"
+    networks:
+      - trading-net
+
+  java-service:
+    build: ./backend-java
+    ports:
+      - "8080:8080"
+    depends_on:
+      - python-service
+    environment:
+      PYTHON_SERVICE_URL: http://python-service:8000
+    networks:
+      - trading-net
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - java-service
+    networks:
+      - trading-net
+
+networks:
+  trading-net:
+    driver: bridge
