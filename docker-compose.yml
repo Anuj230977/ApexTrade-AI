@@ -1,4 +1,17 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: apextrade
+      POSTGRES_USER: apextrade_user
+      POSTGRES_PASSWORD: apextrade_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - trading-net
+
   python-service:
     build: ./backend-python
     ports:
@@ -12,6 +25,7 @@ services:
       - "8080:8080"
     depends_on:
       - python-service
+      - postgres
     environment:
       PYTHON_SERVICE_URL: http://python-service:8000
     networks:
@@ -29,3 +43,7 @@ services:
 networks:
   trading-net:
     driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
