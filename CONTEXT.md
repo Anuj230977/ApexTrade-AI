@@ -52,13 +52,13 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 - PostgreSQL is the system of record for financial state.
 
 ## Docs Map
-- `docs/docs/DATABASE.md` - table design and data modeling notes
-- `docs/docs/PROJECT_OVERVIEW.md` - overall architecture and repo summary
-- `docs/docs/API_REFERENCE.md` - external and internal API endpoints
-- `docs/docs/BACKEND_JAVA.md` - Spring Boot gateway, data, and security notes
-- `docs/docs/BACKEND_PYTHON.md` - FastAPI market price service notes
-- `docs/docs/FRONTEND.md` - React app structure and data flow
-- `docs/docs/DEPLOYMENT.md` - Docker Compose and local run instructions
+- `docs/DATABASE.md` - table design and data modeling notes
+- `docs/PROJECT_OVERVIEW.md` - overall architecture and repo summary
+- `docs/API_REFERENCE.md` - external and internal API endpoints
+- `docs/BACKEND_JAVA.md` - Spring Boot gateway, data, and security notes
+- `docs/BACKEND_PYTHON.md` - FastAPI market price service notes
+- `docs/FRONTEND.md` - React app structure and data flow
+- `docs/DEPLOYMENT.md` - Docker Compose and local run instructions
 
 ## Phase Checklist
 - [x] Phase 1: Walking Skeleton
