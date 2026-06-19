@@ -1,0 +1,28 @@
+# Java / Maven
+backend-java/target/
+*.class
+*.jar
+!*.jar.original
+
+# Python
+backend-python/__pycache__/
+backend-python/*.pyc
+backend-python/venv/
+backend-python/.venv/
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
