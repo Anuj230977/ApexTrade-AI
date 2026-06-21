@@ -10,6 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.apextrade.security.JwtUtil;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class AuthService {
@@ -25,6 +28,9 @@ public class AuthService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Transactional
     public User registerUser(String username, String email, String rawPassword) {
@@ -51,5 +57,24 @@ public class AuthService {
         portfolioRepository.save(portfolio);
 
         return savedUser;
+    }
+
+    public Map<String, Object> loginUser(String email, String rawPassword) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Invalid email or password");
+        }
+
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("userId", user.getId());
+        response.put("username", user.getUsername());
+
+        return response;
     }
 }
