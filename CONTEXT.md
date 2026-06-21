@@ -1,7 +1,7 @@
 # Trading Simulator - Project Context
 
 ## Project Summary
-ApexTrade AI is a three-service trading simulator with a React frontend, a Java Spring Boot gateway, and a FastAPI market-data service. PostgreSQL is already wired in for the trading engine work, and the current repo is focused on the API gateway, market price flow, and the database schema foundation for auth and wallet features.
+ApexTrade AI is a three-service trading simulator with a React frontend, a Java Spring Boot gateway, and a FastAPI market-data service. PostgreSQL is already wired in for the trading engine work, and the current repo is focused on the API gateway, market price flow, and the database/schema foundation for auth, wallet, and portfolio features.
 
 ## Stack
 - Frontend: React 19 + Vite
@@ -28,6 +28,8 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
   - CORS config for local frontend origins
   - PostgreSQL, Flyway, JPA, and JWT properties already configured
   - Entity model exists for `User`, `Wallet`, `Portfolio`, `Position`, and `Transaction`
+  - `POST /api/auth/register` creates the user, wallet, and portfolio records
+  - `POST /api/auth/login` returns a JWT token for authenticated sessions
 - React frontend in `frontend/`
   - `PriceTicker` component for symbol lookup
   - Fetches price data through the Java gateway
@@ -39,11 +41,21 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 - Phase 2: Trading Engine
 - In progress: PostgreSQL-backed auth, JWT security, and virtual wallet foundation
 
+## Phase 2 Status
+- Done: register endpoint
+- Done: login endpoint
+- Done: user, wallet, and portfolio creation on signup
+- Not done: JWT validation filter for request-time protection
+- Not done: authenticated wallet balance endpoint
+- Not done: trading endpoints for buy/sell
+- Not done: portfolio endpoint
+
 ## Next Work
-- Add user registration and login endpoints in Java
-- Wire JWT generation and validation into the Spring Boot app
-- Add wallet creation with the $10,000 starting balance
-- Connect trading operations to the portfolio and transaction tables
+- Wire JWT validation into Spring Security with a request filter
+- Add authenticated `GET /api/wallet/balance`
+- Add buy/sell trading endpoints
+- Add portfolio retrieval endpoint
+- Continue connecting trading operations to the portfolio and transaction tables
 
 ## Project Decisions
 - Frontend talks to Java only, never directly to Python.
