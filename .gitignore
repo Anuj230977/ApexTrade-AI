@@ -26,3 +26,5 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+docs/PROJECT_AUDIT_AND_UIUX_HANDOFF.md
