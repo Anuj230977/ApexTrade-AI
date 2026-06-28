@@ -1,7 +1,7 @@
 # Trading Simulator - Project Context
 
 ## Project Summary
-ApexTrade AI is a three-service trading simulator with a React frontend, a Java Spring Boot gateway, and a FastAPI market-data service. PostgreSQL is already wired in for the trading engine work, and the current repo is focused on the API gateway, market price flow, and the database/schema foundation for auth, wallet, and portfolio features.
+ApexTrade AI is a three-service trading simulator with a React frontend, a Java Spring Boot gateway, and a FastAPI market-data service. PostgreSQL is wired in for the trading engine. Phase 2 is complete, and the current repo focus is moving into Python hardening plus chart/history support for the frontend.
 
 ## Stack
 - Frontend: React 19 + Vite
@@ -14,7 +14,8 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 - The React app calls the Java service only.
 - Java exposes `/api/market/price/{symbol}` and forwards requests to Python.
 - Python exposes `/price/{symbol}` and resolves the live price with yFinance.
-- Java also owns the PostgreSQL connection, Flyway migrations, and future auth/trading endpoints.
+- Python will next expose `/history/{symbol}` for OHLC daily data.
+- Java owns the PostgreSQL connection, Flyway migrations, auth, trading, and API gateway logic.
 - Docker Compose runs `postgres`, `python-service`, `java-service`, and `frontend` on the same bridge network.
 
 ## What Is Built
@@ -22,6 +23,7 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
   - `GET /price/{symbol}`
   - yFinance lookup with basic CORS
   - Returns `symbol`, `price`, and `currency`
+  - Next: symbol validation, timeout handling, and `GET /history/{symbol}` for OHLC chart data
 - Java Spring Boot service in `backend-java/`
   - `GET /api/market/price/{symbol}` proxy endpoint
   - `RestTemplate` client to the Python service
@@ -30,6 +32,7 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
   - Entity model exists for `User`, `Wallet`, `Portfolio`, `Position`, and `Transaction`
   - `POST /api/auth/register` creates the user, wallet, and portfolio records
   - `POST /api/auth/login` returns a JWT token for authenticated sessions
+  - JWT filter, wallet balance, buy/sell, portfolio, and transactions endpoints are complete
 - React frontend in `frontend/`
   - `PriceTicker` component for symbol lookup
   - Fetches price data through the Java gateway
@@ -38,24 +41,25 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
   - Tables for users, wallets, portfolios, positions, transactions, watchlists, and AI signals
 
 ## Current Phase
-- Phase 2: Trading Engine
-- In progress: PostgreSQL-backed auth, JWT security, and virtual wallet foundation
+- Phase 3: Python Hardening + OHLC Chart Data
+- Phase 2 complete: auth, JWT security, wallet, buy/sell, portfolio, and transactions
 
 ## Phase 2 Status
 - Done: register endpoint
 - Done: login endpoint
 - Done: user, wallet, and portfolio creation on signup
-- Not done: JWT validation filter for request-time protection
-- Not done: authenticated wallet balance endpoint
-- Not done: trading endpoints for buy/sell
-- Not done: portfolio endpoint
+- Done: JWT validation filter for request-time protection
+- Done: authenticated wallet balance endpoint
+- Done: trading endpoints for buy/sell
+- Done: `GET /api/portfolio`
+- Done: `GET /api/transactions`
 
 ## Next Work
-- Wire JWT validation into Spring Security with a request filter
-- Add authenticated `GET /api/wallet/balance`
-- Add buy/sell trading endpoints
-- Add portfolio retrieval endpoint
-- Continue connecting trading operations to the portfolio and transaction tables
+- Harden Python service input handling
+- Add symbol validation to the Python service
+- Add timeout handling around yFinance calls
+- Add `GET /history/{symbol}` returning daily OHLC data for Recharts candlestick charts
+- Keep Java as the gateway and continue preparing frontend data contracts for charting
 
 ## Project Decisions
 - Frontend talks to Java only, never directly to Python.
@@ -74,7 +78,7 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 
 ## Phase Checklist
 - [x] Phase 1: Walking Skeleton
-- [ ] Phase 2: Trading Engine
-- [ ] Phase 3: RAG Intelligence
+- [x] Phase 2: Trading Engine
+- [ ] Phase 3: Python Hardening + OHLC Charts
 - [ ] Phase 4: Enterprise Layer
 - [ ] Phase 5: Deploy
