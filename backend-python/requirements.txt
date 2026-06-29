@@ -1,3 +1,7 @@
 fastapi
 uvicorn
 yfinance
+feedparser
+chromadb
+groq
+python-dotenv
