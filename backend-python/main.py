@@ -2,6 +2,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
 import re
+import os
+from rag.news_fetcher import fetch_news
+from rag.vector_store import store_articles, query_relevant_news
+from rag.signal_generator import generate_signal
 
 app = FastAPI()
 
@@ -71,3 +75,25 @@ def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
         raise
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Market data unavailable: {str(e)}")
+
+
+@app.get("/signal/{symbol}")
+def get_signal(symbol: str):
+    symbol = validate_symbol(symbol)
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+        if price is None:
+            raise HTTPException(status_code=404, detail=f"Price not found for symbol: {symbol}")
+        price = round(float(price), 2)
+
+        articles = fetch_news(symbol)
+        store_articles(symbol, articles)
+        relevant_chunks = query_relevant_news(symbol, f"{symbol} stock price analysis", n_results=5)
+        signal = generate_signal(symbol, price, relevant_chunks)
+        return signal
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Signal generation failed: {str(e)}")
