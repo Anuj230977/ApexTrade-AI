@@ -5,10 +5,10 @@ backend-java/target/
 !*.jar.original
 
 # Python
-backend-python/__pycache__/*.pyc
 backend-python/*.pyc
 backend-python/venv/
 backend-python/.venv/
+__pycache__/
 
 # Node / React
 frontend/node_modules/
