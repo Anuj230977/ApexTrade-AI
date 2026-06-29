@@ -30,7 +30,7 @@ def validate_symbol(symbol: str):
 def get_price(symbol: str):
     symbol = validate_symbol(symbol)
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, timeout=10)
         info = ticker.info
         price = info.get("currentPrice") or info.get("regularMarketPrice")
         if price is None:
@@ -56,7 +56,7 @@ def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
     if interval not in valid_intervals:
         raise HTTPException(status_code=400, detail=f"Invalid interval: {interval}")
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, timeout=10)
         hist = ticker.history(period=period, interval=interval)
         if hist.empty:
             raise HTTPException(status_code=404, detail=f"No history for symbol: {symbol}")
@@ -81,7 +81,7 @@ def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
 def get_signal(symbol: str):
     symbol = validate_symbol(symbol)
     try:
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol, timeout=10)
         info = ticker.info
         price = info.get("currentPrice") or info.get("regularMarketPrice")
         if price is None:
