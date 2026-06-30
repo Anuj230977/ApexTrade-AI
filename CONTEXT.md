@@ -41,8 +41,8 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
   - Tables for users, wallets, portfolios, positions, transactions, watchlists, and AI signals
 
 ## Current Phase
-- Phase 3: Python Hardening + OHLC Chart Data
-- Phase 2 complete: auth, JWT security, wallet, buy/sell, portfolio, and transactions
+- Phase 4: Frontend Dashboard + Enterprise Hardening
+- Phase 3 complete: Python hardening, OHLC endpoint, RAG signal pipeline
 
 ## Phase 2 Status
 - Done: register endpoint
@@ -53,6 +53,11 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 - Done: trading endpoints for buy/sell
 - Done: `GET /api/portfolio`
 - Done: `GET /api/transactions`
+
+## Phase 3 Status (Complete)
+- Done: symbol validation, timeout handling, OHLC endpoint
+- Done: RAG pipeline — news fetcher, ChromaDB vector store, Groq LLM signal generation
+- Done: GET /api/market/signal/{symbol} (Java → Python proxy)
 
 ## Next Work
 - Harden Python service input handling
@@ -79,6 +84,6 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 ## Phase Checklist
 - [x] Phase 1: Walking Skeleton
 - [x] Phase 2: Trading Engine
-- [ ] Phase 3: Python Hardening + OHLC Charts
-- [ ] Phase 4: Enterprise Layer
+- [x] Phase 3: Python Hardening + OHLC + RAG
+- [ ] Phase 4: Frontend Dashboard + Enterprise Layer
 - [ ] Phase 5: Deploy
