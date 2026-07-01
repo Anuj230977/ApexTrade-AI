@@ -14,7 +14,7 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 - The React app calls the Java service only.
 - Java exposes `/api/market/price/{symbol}` and forwards requests to Python.
 - Python exposes `/price/{symbol}` and resolves the live price with yFinance.
-- Python will next expose `/history/{symbol}` for OHLC daily data.
+- Python uses timeout-enabled history calls for price, OHLC, and signal data.
 - Java owns the PostgreSQL connection, Flyway migrations, auth, trading, and API gateway logic.
 - Docker Compose runs `postgres`, `python-service`, `java-service`, and `frontend` on the same bridge network.
 
@@ -23,7 +23,7 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
   - `GET /price/{symbol}`
   - yFinance lookup with basic CORS
   - Returns `symbol`, `price`, and `currency`
-  - Next: symbol validation, timeout handling, and `GET /history/{symbol}` for OHLC chart data
+  - Next: retry/caching hardening if live market data becomes flaky
 - Java Spring Boot service in `backend-java/`
   - `GET /api/market/price/{symbol}` proxy endpoint
   - `RestTemplate` client to the Python service
@@ -55,15 +55,14 @@ ApexTrade AI is a three-service trading simulator with a React frontend, a Java 
 - Done: `GET /api/transactions`
 
 ## Phase 3 Status (Complete)
-- Done: symbol validation, timeout handling, OHLC endpoint
+- Done: symbol validation, timeout-safe yFinance helper usage, OHLC endpoint
 - Done: RAG pipeline — news fetcher, ChromaDB vector store, Groq LLM signal generation
 - Done: GET /api/market/signal/{symbol} (Java → Python proxy)
 
 ## Next Work
-- Harden Python service input handling
-- Add symbol validation to the Python service
-- Add timeout handling around yFinance calls
-- Add `GET /history/{symbol}` returning daily OHLC data for Recharts candlestick charts
+- Frontend dashboard hardening and polish
+- Code-split the frontend if bundle size becomes a shipping concern
+- Revisit Python retries/caching only if live-data flakiness appears
 - Keep Java as the gateway and continue preparing frontend data contracts for charting
 
 ## Project Decisions
