@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import yfinance as yf
 import re
-import os
 from rag.news_fetcher import fetch_news
 from rag.vector_store import store_articles, query_relevant_news
 from rag.signal_generator import generate_signal
@@ -26,19 +25,28 @@ def validate_symbol(symbol: str):
     return clean
 
 
+def fetch_history(symbol: str, period: str, interval: str):
+    ticker = yf.Ticker(symbol)
+    return ticker.history(period=period, interval=interval, timeout=10)
+
+
+def fetch_latest_price(symbol: str):
+    history = fetch_history(symbol, period="5d", interval="1d")
+    if history.empty or history["Close"].dropna().empty:
+        raise HTTPException(status_code=404, detail=f"Price not found for symbol: {symbol}")
+
+    return round(float(history["Close"].dropna().iloc[-1]), 2)
+
+
 @app.get("/price/{symbol}")
 def get_price(symbol: str):
     symbol = validate_symbol(symbol)
     try:
-        ticker = yf.Ticker(symbol, timeout=10)
-        info = ticker.info
-        price = info.get("currentPrice") or info.get("regularMarketPrice")
-        if price is None:
-            raise HTTPException(status_code=404, detail=f"Price not found for symbol: {symbol}")
+        price = fetch_latest_price(symbol)
         return {
             "symbol": symbol,
             "price": round(float(price), 2),
-            "currency": info.get("currency", "USD"),
+            "currency": "USD",
         }
     except HTTPException:
         raise
@@ -56,8 +64,7 @@ def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
     if interval not in valid_intervals:
         raise HTTPException(status_code=400, detail=f"Invalid interval: {interval}")
     try:
-        ticker = yf.Ticker(symbol, timeout=10)
-        hist = ticker.history(period=period, interval=interval)
+        hist = fetch_history(symbol, period=period, interval=interval)
         if hist.empty:
             raise HTTPException(status_code=404, detail=f"No history for symbol: {symbol}")
         result = []
@@ -81,12 +88,7 @@ def get_history(symbol: str, period: str = "1mo", interval: str = "1d"):
 def get_signal(symbol: str):
     symbol = validate_symbol(symbol)
     try:
-        ticker = yf.Ticker(symbol, timeout=10)
-        info = ticker.info
-        price = info.get("currentPrice") or info.get("regularMarketPrice")
-        if price is None:
-            raise HTTPException(status_code=404, detail=f"Price not found for symbol: {symbol}")
-        price = round(float(price), 2)
+        price = fetch_latest_price(symbol)
 
         articles = fetch_news(symbol)
         store_articles(symbol, articles)
