@@ -4,6 +4,8 @@ import {
   CartesianGrid,
   ComposedChart,
   Customized,
+  Area,
+  AreaChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -24,6 +26,13 @@ const CHART_COLORS = {
   grid: 'rgba(148, 163, 184, 0.16)',
   label: '#cbd5e1',
 }
+
+const TIMEFRAME_OPTIONS = [
+  { label: '1H', period: '1d', interval: '5m' },
+  { label: '1D', period: '5d', interval: '15m' },
+  { label: '1W', period: '1mo', interval: '1d' },
+  { label: '1M', period: '6mo', interval: '1d' },
+]
 
 const demoCandles = [
   { date: 'Mon', open: 180, high: 188, low: 176, close: 186 },
@@ -59,13 +68,33 @@ function percent(value) {
   return value > 0 ? `+${formatted}` : formatted
 }
 
-function CandleLayer({ xAxisMap, yAxisMap, data }) {
+function formatCompactPrice(value) {
+  return money(value, 2)
+}
+
+function formatCompactChange(value) {
+  const amount = Number(value || 0)
+  const formatted = `${Math.abs(amount).toFixed(2)}%`
+  return amount >= 0 ? `+${formatted}` : `-${formatted}`
+}
+
+function normalizeChartData(data) {
+  return (Array.isArray(data) ? data : []).map((item, index) => ({
+    ...item,
+    date: item.date || item.timestamp || item.time || item.label || `point-${index}`,
+  }))
+}
+
+// FIXED: CandleLayer now correctly accepts props from Recharts Customized component
+function CandleLayer(props) {
+  const { xAxisMap, yAxisMap, data } = props;
+  
   const xAxis = Object.values(xAxisMap || {})[0]
   const yAxis = Object.values(yAxisMap || {})[0]
   const xScale = xAxis?.scale
   const yScale = yAxis?.scale
 
-  if (!xScale || !yScale) {
+  if (!xScale || !yScale || !data) {
     return null
   }
 
@@ -74,7 +103,7 @@ function CandleLayer({ xAxisMap, yAxisMap, data }) {
 
   return (
     <g>
-      {data.map((item) => {
+      {data.map((item, i) => {
         const xCenter = xScale(item.date) + bandwidth / 2
         const yOpen = yScale(item.open)
         const yClose = yScale(item.close)
@@ -86,8 +115,16 @@ function CandleLayer({ xAxisMap, yAxisMap, data }) {
         const fill = rising ? '#22c55e' : '#ef4444'
 
         return (
-          <g key={item.date}>
-            <line x1={xCenter} x2={xCenter} y1={yHigh} y2={yLow} stroke={fill} strokeWidth={2} />
+          <g key={i}>
+            <line
+              x1={xCenter}
+              x2={xCenter}
+              y1={yHigh}
+              y2={yLow}
+              stroke={fill}
+              strokeWidth={2}
+              style={{ filter: `drop-shadow(0 0 6px ${rising ? 'rgba(34, 197, 94, 0.75)' : 'rgba(239, 68, 68, 0.75)'})` }}
+            />
             <rect
               x={xCenter - candleWidth / 2}
               y={bodyTop}
@@ -96,11 +133,189 @@ function CandleLayer({ xAxisMap, yAxisMap, data }) {
               rx={4}
               fill={fill}
               opacity="0.9"
+              style={{ filter: `drop-shadow(0 0 8px ${rising ? 'rgba(34, 197, 94, 0.55)' : 'rgba(239, 68, 68, 0.55)'})` }}
             />
           </g>
         )
       })}
     </g>
+  )
+}
+
+function CandlestickChart({ data }) {
+  const chartData = useMemo(() => normalizeChartData(data), [data])
+
+  return (
+    <ResponsiveContainer width="100%" height={360}>
+      <ComposedChart data={chartData} margin={{ top: 20, right: 12, bottom: 12, left: 0 }}>
+        <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey="date" stroke={CHART_COLORS.label} tickLine={false} axisLine={false} />
+        <YAxis stroke={CHART_COLORS.label} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
+        <Tooltip content={<CustomTooltip />} />
+        {/* FIXED: Pass component reference, not element */}
+        <Customized component={CandleLayer} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  )
+}
+
+function AreaChartView({ data }) {
+  const chartData = useMemo(() => normalizeChartData(data), [data])
+
+  return (
+    <ResponsiveContainer width="100%" height={360}>
+      <AreaChart data={chartData} margin={{ top: 20, right: 12, bottom: 12, left: 0 }}>
+        <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} strokeDasharray="3 3" />
+        <XAxis dataKey="date" stroke={CHART_COLORS.label} tickLine={false} axisLine={false} />
+        <YAxis stroke={CHART_COLORS.label} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
+        <Tooltip content={<CustomTooltip />} />
+        <defs>
+          <linearGradient id="priceAreaFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.4} />
+            <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <Area
+          type="monotone"
+          dataKey="close"
+          stroke="#38bdf8"
+          strokeWidth={2}
+          fill="url(#priceAreaFill)"
+          dot={false}
+          activeDot={{ r: 4 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) {
+    return null
+  }
+
+  const candle = payload[0]?.payload
+
+  if (!candle) {
+    return null
+  }
+
+  const rising = candle.close >= candle.open
+
+  return (
+    <div className="glass-panel" style={{ minWidth: '220px', padding: '16px', borderRadius: '16px' }}>
+      <div style={{ color: '#f8fafc', fontWeight: 700, marginBottom: '10px' }}>{label}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '6px 16px', color: '#cbd5e1', fontSize: '0.92rem' }}>
+        <span>Open</span>
+        <span style={{ color: '#f8fafc' }}>{formatCompactPrice(candle.open)}</span>
+        <span>High</span>
+        <span style={{ color: '#86efac' }}>{formatCompactPrice(candle.high)}</span>
+        <span>Low</span>
+        <span style={{ color: '#fca5a5' }}>{formatCompactPrice(candle.low)}</span>
+        <span>Close</span>
+        <span style={{ color: rising ? '#86efac' : '#fca5a5' }}>{formatCompactPrice(candle.close)}</span>
+      </div>
+    </div>
+  )
+}
+
+function ChartShell({
+  symbol,
+  priceData,
+  history,
+  loading,
+  onLoadHistory,
+  onTrade,
+}) {
+  const [timeframe, setTimeframe] = useState('1W')
+
+  const activeOption = TIMEFRAME_OPTIONS.find((option) => option.label === timeframe) || TIMEFRAME_OPTIONS[2]
+
+  const chartData = useMemo(() => normalizeChartData(history), [history])
+
+  useEffect(() => {
+    void onLoadHistory(symbol, activeOption.period, activeOption.interval)
+  }, [activeOption.interval, activeOption.period, onLoadHistory, symbol])
+
+  const marketStats = useMemo(() => {
+    const source = chartData.length ? chartData : normalizeChartData(demoCandles)
+    const highs = source.map((item) => Number(item.high || 0))
+    const lows = source.map((item) => Number(item.low || 0))
+    const volumes = source.map((item) => Number(item.volume || 0))
+
+    return {
+      high: Math.max(...highs),
+      low: Math.min(...lows),
+      volume: volumes.length ? volumes.reduce((sum, value) => sum + value, 0) : 0,
+    }
+  }, [history])
+
+  const currentPrice = Number(priceData?.price || history?.[history.length - 1]?.close || 0)
+  const firstClose = Number(history?.[0]?.open || history?.[0]?.close || currentPrice || 0)
+  const changePercent = firstClose ? ((currentPrice - firstClose) / firstClose) * 100 : 0
+  const isPositive = changePercent >= 0
+
+  return (
+    <div className="chart-shell glass-panel">
+      <div className="section-header">
+        <div>
+          <span className="eyebrow">Market chart</span>
+          <h2 style={{ marginTop: '8px' }}>
+            {symbol.toUpperCase()} <span className="muted" style={{ fontSize: '0.86rem', fontWeight: 500 }}>Live OHLC view</span>
+          </h2>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div style={{ color: '#f8fafc', fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.04em' }}>{formatCompactPrice(currentPrice)}</div>
+          <div className={`signal-badge ${isPositive ? 'positive' : 'negative'}`}>
+            {isPositive ? '↑' : '↓'} {formatCompactChange(changePercent)}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+        {TIMEFRAME_OPTIONS.map((option) => (
+          <button
+            key={option.label}
+            type="button"
+            className={timeframe === option.label ? 'primary-btn' : 'ghost-btn'}
+            onClick={() => setTimeframe(option.label)}
+            style={{ minWidth: '72px', padding: '10px 14px' }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+        <CandlestickChart data={chartData} />
+
+      <div className="section-card" style={{ padding: '16px', background: 'rgba(2, 6, 23, 0.35)', borderRadius: '18px' }}>
+        <div className="section-header" style={{ marginBottom: 0 }}>
+          <div>
+            <span className="eyebrow">24h stats</span>
+            <h2 style={{ marginTop: '8px', fontSize: '1.15rem' }}>Market activity</h2>
+          </div>
+        </div>
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+          <StatCard label="24h High" value={formatCompactPrice(marketStats.high)} detail="Session peak" tone="positive" />
+          <StatCard label="24h Low" value={formatCompactPrice(marketStats.low)} detail="Session floor" tone="negative" />
+          <StatCard label="24h Volume" value={marketStats.volume.toLocaleString('en-US')} detail="Aggregated volume" tone="neutral" />
+        </div>
+      </div>
+
+      <div style={{ display: 'none' }} aria-hidden="true">
+        <AreaChartView data={chartData} />
+      </div>
+
+      <div className="trade-actions" style={{ justifyContent: 'flex-start' }}>
+        <button className="primary-btn buy" type="button" onClick={() => onTrade('buy')} disabled={loading.trade}>
+          Buy
+        </button>
+        <button className="primary-btn sell" type="button" onClick={() => onTrade('sell')} disabled={loading.trade}>
+          Sell
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -143,8 +358,18 @@ function AuthPanel({ onAuthenticated }) {
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isHovering, setIsHovering] = useState(false)
 
   const submitLabel = mode === 'login' ? 'Login' : 'Create account'
+
+  const handleMouseMove = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    setMousePosition({
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    })
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -195,7 +420,28 @@ function AuthPanel({ onAuthenticated }) {
 
   return (
     <section className="auth-shell">
-      <div className="auth-panel glass-panel">
+      <div
+        className="auth-panel glass-panel"
+        onMouseMove={handleMouseMove}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 'auto auto 0 0',
+            width: '500px',
+            height: '500px',
+            borderRadius: '999px',
+            pointerEvents: 'none',
+            transform: `translate(${mousePosition.x - 250}px, ${mousePosition.y - 250}px)`,
+            transition: 'transform 100ms ease-out, opacity 180ms ease',
+            opacity: isHovering ? 1 : 0,
+            background: 'radial-gradient(circle, rgba(56, 189, 248, 0.28) 0%, rgba(99, 102, 241, 0.2) 34%, transparent 68%)',
+            filter: 'blur(64px)',
+          }}
+        />
         <div className="brand-mark">
           <span className="brand-dot" />
           ApexTrade AI
@@ -298,38 +544,6 @@ function SectionHeader({ title, subtitle, action }) {
   )
 }
 
-function CandlestickChart({ data }) {
-  const chartData = useMemo(
-    () =>
-      data.map((item) => ({
-        ...item,
-      })),
-    [data],
-  )
-
-  return (
-    <div className="chart-shell glass-panel">
-      <ResponsiveContainer width="100%" height={360}>
-        <ComposedChart data={chartData} margin={{ top: 20, right: 12, bottom: 12, left: 0 }}>
-          <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} />
-          <XAxis dataKey="date" stroke={CHART_COLORS.label} tickLine={false} axisLine={false} />
-          <YAxis stroke={CHART_COLORS.label} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
-          <Tooltip
-            contentStyle={{
-              background: '#0f172a',
-              border: '1px solid rgba(148, 163, 184, 0.2)',
-              borderRadius: '14px',
-              color: '#e2e8f0',
-            }}
-          />
-          <Customized component={<CandleLayer data={chartData} />} />
-        </ComposedChart>
-      </ResponsiveContainer>
-      <div className="chart-footnote muted">Candlestick-ready OHLC data feeds Recharts charting.</div>
-    </div>
-  )
-}
-
 function Dashboard({ token, onLogout }) {
   const [activeView, setActiveView] = useState('dashboard')
   const [symbol, setSymbol] = useState('AAPL')
@@ -392,11 +606,15 @@ function Dashboard({ token, onLogout }) {
   }, [token])
 
   const loadHistory = useCallback(
-    async (targetSymbol = symbol) => {
+    async (targetSymbol = symbol, period = '1mo', interval = '1d') => {
     if (!targetSymbol.trim()) return
     setLoading((state) => ({ ...state, price: true }))
     try {
-      const data = await apiFetch(`/api/market/history/${encodeURIComponent(targetSymbol)}?period=1mo&interval=1d`, {}, token)
+      const data = await apiFetch(
+        `/api/market/history/${encodeURIComponent(targetSymbol)}?period=${encodeURIComponent(period)}&interval=${encodeURIComponent(interval)}`,
+        {},
+        token,
+      )
       setHistory(data.data || demoCandles)
     } catch {
       setHistory(demoCandles)
@@ -579,9 +797,9 @@ function Dashboard({ token, onLogout }) {
 
         {activeView === 'trade' && (
           <section className="content-grid trade-grid">
-            <div className="glass-panel section-card">
+            <div className="glass-panel section-card" style={{ alignSelf: 'start' }}>
               <SectionHeader title="Trading terminal" subtitle="Execute orders" />
-              <div className="trade-form">
+              <div className="trade-form" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', justifyContent: 'flex-start' }}>
                 <label>
                   Symbol
                   <input value={tradeForm.symbol} onChange={(event) => setTradeForm({ ...tradeForm, symbol: event.target.value.toUpperCase() })} />
@@ -590,24 +808,23 @@ function Dashboard({ token, onLogout }) {
                   Quantity
                   <input type="number" min="1" step="1" value={tradeForm.quantity} onChange={(event) => setTradeForm({ ...tradeForm, quantity: event.target.value })} />
                 </label>
-                <div className="trade-actions">
-                  <button className="primary-btn buy" type="button" onClick={() => handleTrade('buy')} disabled={loading.trade}>
-                    Buy
-                  </button>
-                  <button className="primary-btn sell" type="button" onClick={() => handleTrade('sell')} disabled={loading.trade}>
-                    Sell
-                  </button>
-                </div>
               </div>
             </div>
 
             <div className="stacked-grid">
-              <div className="glass-panel section-card">
+              <div className="glass-panel section-card" style={{ alignSelf: 'start' }}>
                 <SectionHeader title="Price history" subtitle="OHLC / Recharts" />
-                <CandlestickChart data={history} />
+                <ChartShell
+                  symbol={tradeForm.symbol || symbol}
+                  priceData={priceData}
+                  history={history}
+                  loading={loading}
+                  onLoadHistory={loadHistory}
+                  onTrade={handleTrade}
+                />
               </div>
 
-              <div className="glass-panel section-card signal-card">
+              <div className="glass-panel section-card signal-card" style={{ alignSelf: 'start' }}>
                 <SectionHeader title="Signal detail" subtitle="AI trade call" />
                 <div className={`signal-badge ${currentSignalTone}`}>{marketSignal?.signal || 'HOLD'}</div>
                 <p className="confidence">{marketSignal?.confidence || 'LOW'}</p>
