@@ -1,88 +1,78 @@
-# Trading Simulator - Project Context
+# ApexTrade AI - Project Context
 
 ## Project Summary
-ApexTrade AI is a three-service trading simulator with a React frontend, a Java Spring Boot gateway, and a FastAPI market-data service. PostgreSQL is wired in for the trading engine. Phase 2 is complete, and the current repo focus is moving into Python hardening plus chart/history support for the frontend.
 
-## Stack
-- Frontend: React 19 + Vite
-- Backend Java: Spring Boot 3.2, Java 21, JPA, Flyway, JWT, PostgreSQL
-- Backend Python: FastAPI + yFinance
-- Database: PostgreSQL
-- DevOps: Docker, Docker Compose
+ApexTrade AI is a three-service paper-trading platform:
+
+- React 19 + Vite frontend.
+- Java 21 / Spring Boot 3.2 gateway and virtual-trading engine.
+- FastAPI / Python market-data service.
+- PostgreSQL system of record for virtual financial state.
+
+The platform uses real, delayed, or historical external market data. It does not place real brokerage orders or execute live trades.
 
 ## Current Architecture
-- The React app calls the Java service only.
-- Java exposes `/api/market/price/{symbol}` and forwards requests to Python.
-- Python exposes `/price/{symbol}` and resolves the live price with yFinance.
-- Python uses timeout-enabled history calls for price, OHLC, and signal data.
-- Java owns the PostgreSQL connection, Flyway migrations, auth, trading, and API gateway logic.
-- Docker Compose runs `postgres`, `python-service`, `java-service`, and `frontend` on the same bridge network.
 
-## What Is Built
-- Python FastAPI service in `backend-python/`
-  - `GET /price/{symbol}`
-  - yFinance lookup with basic CORS
-  - Returns `symbol`, `price`, and `currency`
-  - Next: retry/caching hardening if live market data becomes flaky
-- Java Spring Boot service in `backend-java/`
-  - `GET /api/market/price/{symbol}` proxy endpoint
-  - `RestTemplate` client to the Python service
-  - CORS config for local frontend origins
-  - PostgreSQL, Flyway, JPA, and JWT properties already configured
-  - Entity model exists for `User`, `Wallet`, `Portfolio`, `Position`, and `Transaction`
-  - `POST /api/auth/register` creates the user, wallet, and portfolio records
-  - `POST /api/auth/login` returns a JWT token for authenticated sessions
-  - JWT filter, wallet balance, buy/sell, portfolio, and transactions endpoints are complete
-- React frontend in `frontend/`
-  - `PriceTicker` component for symbol lookup
-  - Fetches price data through the Java gateway
-  - Vite app scaffold with minimal UI
-- Database schema in `backend-java/src/main/resources/db/migration/`
-  - Tables for users, wallets, portfolios, positions, transactions, watchlists, and AI signals
+- React calls Java for application, market-data, auth, portfolio, wallet, trade, and transaction operations.
+- Java calls Python for market prices and other market-data features.
+- Java owns PostgreSQL persistence and Flyway migrations.
+- Python owns upstream market-data retrieval and AI-related market features.
+- PostgreSQL stores virtual cash, positions, and transaction history.
 
-## Current Phase
-- Phase 4: Frontend Dashboard + Enterprise Hardening
-- Phase 3 complete: Python hardening, OHLC endpoint, RAG signal pipeline
+## Current P0-2 Status
 
-## Phase 2 Status
-- Done: register endpoint
-- Done: login endpoint
-- Done: user, wallet, and portfolio creation on signup
-- Done: JWT validation filter for request-time protection
-- Done: authenticated wallet balance endpoint
-- Done: trading endpoints for buy/sell
-- Done: `GET /api/portfolio`
-- Done: `GET /api/transactions`
+P0-2 trade safety is implemented:
 
-## Phase 3 Status (Complete)
-- Done: symbol validation, timeout-safe yFinance helper usage, OHLC endpoint
-- Done: RAG pipeline — news fetcher, ChromaDB vector store, Groq LLM signal generation
-- Done: GET /api/market/signal/{symbol} (Java → Python proxy)
+- Typed trade DTO and Bean Validation.
+- Normalized symbol and validated quantity.
+- Missing, invalid, non-positive, and oversized upstream prices rejected.
+- Insufficient-funds and insufficient-shares checks prevent state mutation.
+- Full sells delete the position instead of storing zero quantity.
+- Consistent JSON error envelope for trade failures.
+- V8 migration adds `NOT VALID` CHECK constraints.
+- Startup guard requires `trading.mode=PAPER`.
 
-## Next Work
-- Frontend dashboard hardening and polish
-- Code-split the frontend if bundle size becomes a shipping concern
-- Revisit Python retries/caching only if live-data flakiness appears
-- Keep Java as the gateway and continue preparing frontend data contracts for charting
+Verified unit tests: 14 passed, 0 failures, 0 errors, 0 skipped.
 
-## Project Decisions
-- Frontend talks to Java only, never directly to Python.
-- Java is the gateway and the main business API layer.
-- Python stays focused on market data and AI-related services.
-- PostgreSQL is the system of record for financial state.
+Verified build: `mvn package` succeeded.
 
-## Docs Map
-- `docs/DATABASE.md` - table design and data modeling notes
-- `docs/PROJECT_OVERVIEW.md` - overall architecture and repo summary
-- `docs/API_REFERENCE.md` - external and internal API endpoints
-- `docs/BACKEND_JAVA.md` - Spring Boot gateway, data, and security notes
-- `docs/BACKEND_PYTHON.md` - FastAPI market price service notes
-- `docs/FRONTEND.md` - React app structure and data flow
-- `docs/DEPLOYMENT.md` - Docker Compose and local run instructions
+## Deferred P0-2 Runtime Checks
 
-## Phase Checklist
-- [x] Phase 1: Walking Skeleton
-- [x] Phase 2: Trading Engine
-- [x] Phase 3: Python Hardening + OHLC + RAG
-- [ ] Phase 4: Frontend Dashboard + Enterprise Layer
-- [ ] Phase 5: Deploy
+Docker Desktop and PostgreSQL were unavailable, so the following were not executed:
+
+- Flyway V8 migration against PostgreSQL.
+- Live constraint enforcement tests.
+- Legacy-row validation or cleanup.
+- Spring startup guard runtime test.
+- Live HTTP buy/sell integration tests.
+- Docker Compose smoke test.
+
+V8 is implemented but not yet database-executed.
+
+## P0-3 Outstanding Work
+
+P0-3 still needs:
+
+- Row locking or optimistic versioning.
+- Concurrent buy/sell safety tests.
+- Idempotency keys and duplicate-trade prevention.
+- Java outbound HTTP timeout configuration.
+
+`@Transactional` provides rollback/atomic method behavior but does not by itself guarantee concurrency safety or duplicate-request prevention.
+
+## Repository Areas
+
+- `frontend/`: React application.
+- `backend-java/`: Spring Boot API, persistence, migrations, and paper-trading logic.
+- `backend-python/`: FastAPI market-data and AI services.
+- `docs/`: architecture, database, API, deployment, and phase documentation.
+
+## Documentation Map
+
+- `docs/README.md`: documentation index.
+- `docs/phases/P0-2_TRADE_SAFETY.md`: authoritative P0-2 report.
+- `docs/PROJECT_OVERVIEW.md`: project overview.
+- `docs/BACKEND_JAVA.md`: Java implementation and configuration.
+- `docs/API_REFERENCE.md`: public API and error contracts.
+- `docs/DATABASE.md`: schema, migrations, and financial constraints.
+- `docs/DEPLOYMENT.md`: Docker Compose and environment settings.

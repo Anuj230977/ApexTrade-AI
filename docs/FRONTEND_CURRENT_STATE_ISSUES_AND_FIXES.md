@@ -1,5 +1,7 @@
 # Frontend Current State Issues and Fixes
 
+> **Historical change report:** This document describes a dated frontend review and fixes. It is preserved for change context and should not be used as the current source of truth for P0-2. P0-2 made no frontend changes.
+
 ## What Was Checked
 - Frontend source files under `frontend/src/`
 - Backend Java controllers under `backend-java/src/main/java/com/apextrade/controller/`

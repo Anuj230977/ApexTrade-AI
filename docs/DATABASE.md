@@ -1,86 +1,138 @@
 # ApexTrade AI - Database Design Guide
 
-## Why PostgreSQL?
-PostgreSQL is the industry standard for financial applications because it 
-supports ACID transactions — meaning money can never be lost or duplicated 
-during a buy/sell operation. This is why Java Spring Boot uses @Transactional 
-when executing trades.
+## Purpose
 
-## Why Flyway?
-Flyway manages database migrations — versioned SQL scripts that run 
-automatically when the app starts. Golden rule: never edit a migration file 
-after it has been run. New changes = new file.
+PostgreSQL is the system of record for virtual financial state: wallet cash, portfolios, positions, and immutable transaction history.
+
+ApexTrade AI is a paper-trading system. PostgreSQL state represents simulated money and holdings only. It does not represent real brokerage accounts or executed live-market orders.
+
+## Why PostgreSQL and Flyway
+
+PostgreSQL supports ACID transactions, constraints, and exact decimal storage.
+
+Flyway manages versioned SQL migrations under `backend-java/src/main/resources/db/migration/`. Never edit an applied migration. Make a new Flyway version for schema changes.
+
+The P0-2 migrations must not be described as verified against PostgreSQL until a live database run has occurred.
 
 ## Table Relationships
-users
 
-├── wallets      (one-to-one)  → user's cash balance
-├── portfolios   (one-to-one)  → user's overall portfolio value
-│     └── positions (one-to-many) → individual stock holdings
-├── transactions (one-to-many) → full history of buys/sells
-└── watchlists   (one-to-many) → stocks user is watching
-ai_signals (standalone) → stores every AI recommendation ever made
+```mermaid
+flowchart TD
+    U[users] --> W[wallets]
+    U --> P[portfolios]
+    P --> POS[positions]
+    U --> T[transactions]
+    U --> WATCH[watchlists]
+    AI[ai_signals] -->|standalone| AI
+```
 
-## Table Explanations
+- `users` → `wallets`: one-to-one
+- `users` → `portfolios`: one-to-one
+- `portfolios` → `positions`: one-to-many
+- `users` → `transactions`: one-to-many
+- `users` → `watchlists`: one-to-many
+- `ai_signals`: standalone AI recommendation history
 
-### users
-The master table. Every other table links back to this.
-- `id` UUID — unique identifier, generated automatically by PostgreSQL
-- `password_hash` — never store plain passwords, always bcrypt hashed
-- `role` — TRADER or ADMIN, controls what endpoints they can access
+## Financial Tables
 
 ### wallets
-Stores virtual cash. One wallet per user.
-- `cash_balance` starts at $10,000 on registration
-- Decreases on BUY, increases on SELL
-- Uses DECIMAL(15,2) not float — floats lose precision with money
+
+- One wallet per user.
+- `cash_balance` uses `DECIMAL(15,2)`.
+- The normal virtual starting cash is $10,000.
+- P0-2 adds a non-negative CHECK constraint.
 
 ### portfolios
-Tracks overall portfolio performance.
-- `total_value` = cash_balance + value of all positions
-- `total_return_percent` = how much user has gained/lost since start
+
+- One portfolio per user.
+- `total_value` uses `DECIMAL(15,2)`.
+- `total_return_percent` uses `DECIMAL(10,2)`.
 
 ### positions
-Each row = one stock holding.
-- `average_cost` uses Weighted Average Cost method
-  - Buy 10 AAPL @ $100 + Buy 10 AAPL @ $120 = average cost $110
-- UNIQUE(portfolio_id, symbol) — can't have two rows for same stock
+
+- One position per portfolio and normalized symbol.
+- `quantity` uses `DECIMAL(15,4)`.
+- `average_cost` uses `DECIMAL(15,2)`.
+- P0-2 adds a positive-quantity CHECK constraint.
+- A full sell deletes the position rather than storing quantity zero.
 
 ### transactions
-Immutable record of every trade. Never deleted.
-- `transaction_type` = BUY or SELL
-- `total_amount` = quantity × price
-- Used for trade history page and audit trail
 
-### watchlists
-Simple list of symbols a user wants to monitor.
-- No price data stored here — prices always fetched live from Python service
+- Stores BUY and SELL history.
+- `quantity` uses `DECIMAL(15,4)`.
+- `price` and `total_amount` use `DECIMAL(15,2)`.
+- Transaction rows should be treated as the trade audit history.
 
-### ai_signals
-Every AI recommendation ever generated gets stored here.
-- Standalone table — not linked to any user
-- Used for AI accuracy tracking in admin dashboard
-- `confidence` = 0-100 integer
-- `reason` = TEXT, stores full RAG-generated explanation
+## P0-2 Migration V8
 
-## Key Concepts
+Implemented migration:
 
-### FOREIGN KEY
-Links two tables together. Example:
-wallets.user_id → users.id
-This means a wallet cannot exist without a user.
+`backend-java/src/main/resources/db/migration/V8__add_trade_constraints.sql`
 
-### ON DELETE CASCADE
-If a user is deleted, their wallet/portfolio/positions are 
-automatically deleted too. Prevents orphaned data.
+```sql
+ALTER TABLE wallets
+    ADD CONSTRAINT chk_wallets_cash_balance_non_negative
+    CHECK (cash_balance >= 0) NOT VALID;
 
-### UUID vs INTEGER for IDs
-We use UUID instead of auto-increment integers because:
-- UUIDs are unpredictable — users can't guess other users' IDs
-- Safe to expose in URLs
-- Industry standard for financial applications
+ALTER TABLE positions
+    ADD CONSTRAINT chk_positions_quantity_positive
+    CHECK (quantity > 0) NOT VALID;
+```
 
-### DECIMAL(15,2) vs FLOAT
-Always use DECIMAL for money. 
-FLOAT: 0.1 + 0.2 = 0.30000000000000004 (floating point error)
-DECIMAL: 0.1 + 0.2 = 0.30 (exact)
+`NOT VALID` permits existing database rows to remain without blocking migration application. Future inserts and updates are still constrained. It does not validate or clean existing rows.
+
+### V8 Status
+
+- **Implemented:** yes.
+- **Executed against PostgreSQL:** no.
+- **Database constraint test passed:** no live test executed.
+- **Legacy-row cleanup:** deferred.
+
+Do not claim V8 passed in a live database until Flyway and PostgreSQL validation are run.
+
+## Precision and Comparisons
+
+Use `BigDecimal` for money and quantities. Java code must not use `double` or `float` for financial arithmetic.
+
+Use `compareTo(...)` instead of `equals(...)` when comparing scale-sensitive `BigDecimal` values.
+
+Recommended P0-2 limits:
+
+- Quantity: greater than zero, scale at most 4, maximum `1,000,000.0000`.
+- Market price: greater than zero, maximum `1,000,000.00`, normalized to scale 2.
+- Symbol: trimmed, uppercase, and matched against `^[A-Z]{1,10}$`.
+
+## Transaction Safety
+
+Trade methods use `@Transactional`, allowing wallet, position, and transaction changes to roll back together when an exception occurs.
+
+However, `@Transactional` alone does not provide:
+
+- Pessimistic or optimistic row locking.
+- Protection against concurrent lost updates.
+- Idempotency or duplicate-trade prevention.
+
+These remain P0-3 work.
+
+## FOREIGN KEYS and ON DELETE
+
+Foreign keys prevent orphaned rows. Existing cascade rules apply, for example:
+
+- Deleting a user cascades to its wallet and portfolio in the current schema.
+- Deleting a portfolio cascades to its positions.
+
+See migrations V1–V7 for the exact applied foreign-key definitions and cascade rules.
+
+## UUIDs
+
+ApexTrade uses UUID primary keys for unpredictability and safe application-level identity. UUID does not replace authentication or authorization checks.
+
+## Deferred Database Checks
+
+Until PostgreSQL/Docker is available:
+
+- Flyway V8 execution.
+- Constraint enforcement tests.
+- Rollback tests after insufficient-funds or insufficient-shares failures.
+- Concurrent buy/sell tests.
+- Legacy dirty-row repair and constraint validation.

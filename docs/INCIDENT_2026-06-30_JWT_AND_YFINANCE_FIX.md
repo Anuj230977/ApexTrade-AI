@@ -1,5 +1,7 @@
 # Incident Note: 403 Market Requests and yFinance Timeout Bug
 
+> **Historical incident report:** This file records the JWT/public-route and yFinance timeout incident as investigated at the time. P0-2 did not alter authentication or market-data behavior. Use current source and P0-2 documentation for present implementation status; do not infer newer runtime validation from this dated report.
+
 ## What Happened
 Two separate issues were showing up at the same time:
 
