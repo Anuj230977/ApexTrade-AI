@@ -27,4 +27,7 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 
+# Local scratch / experiments
+scratch/
+
 docs/PROJECT_AUDIT_AND_UIUX_HANDOFF.md
