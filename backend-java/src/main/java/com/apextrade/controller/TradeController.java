@@ -1,37 +1,35 @@
 package com.apextrade.controller;
 
+import com.apextrade.dto.TradeRequest;
 import com.apextrade.service.TradeService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/trade")
 public class TradeController {
 
-    @Autowired
-    private TradeService tradeService;
+    private final TradeService tradeService;
+
+    public TradeController(TradeService tradeService) {
+        this.tradeService = tradeService;
+    }
 
     @PostMapping("/buy")
-    public ResponseEntity<?> buy(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> buy(@Valid @RequestBody TradeRequest request) {
         UUID userId = (UUID) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
-        String symbol = request.get("symbol");
-        BigDecimal quantity = new BigDecimal(request.get("quantity"));
-        return ResponseEntity.ok(tradeService.buy(userId, symbol, quantity));
+        return ResponseEntity.ok(tradeService.buy(userId, request.getSymbol(), request.getQuantity()));
     }
 
     @PostMapping("/sell")
-    public ResponseEntity<?> sell(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> sell(@Valid @RequestBody TradeRequest request) {
         UUID userId = (UUID) SecurityContextHolder.getContext()
                 .getAuthentication().getPrincipal();
-        String symbol = request.get("symbol");
-        BigDecimal quantity = new BigDecimal(request.get("quantity"));
-        return ResponseEntity.ok(tradeService.sell(userId, symbol, quantity));
+        return ResponseEntity.ok(tradeService.sell(userId, request.getSymbol(), request.getQuantity()));
     }
 }
